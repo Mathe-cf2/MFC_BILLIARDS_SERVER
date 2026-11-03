@@ -1,5 +1,10 @@
+
 import asyncio
-import websockets
+import os
+import http
+
+from websockets.asyncio.server import serve
+
 
 async def servidor(websocket):
     print("Novo jogador conectado!")
@@ -7,23 +12,30 @@ async def servidor(websocket):
     try:
         async for mensagem in websocket:
             print(f"Mensagem recebida: {mensagem}")
+            await websocket.send(f"Servidor recebeu: {mensagem}")
 
-            await websocket.send(
-                f"Servidor recebeu: {mensagem}"
-            )
+    except Exception as erro:
+        print(f"Conexão encerrada: {erro}")
 
-    except websockets.exceptions.ConnectionClosed:
-        print("Jogador desconectado!")
+
+def health_check(connection, request):
+    if request.path == "/healthz":
+        return connection.respond(http.HTTPStatus.OK, "OK\n")
 
 
 async def main():
-    async with websockets.serve(
+    porta = int(os.environ.get("PORT", 10000))
+
+    async with serve(
         servidor,
         "0.0.0.0",
-        10000
-    ):
-        print("Servidor MFC BILLIARDS iniciado!")
-        await asyncio.Future()
+        porta,
+        process_request=health_check
+    ) as server:
+
+        print(f"MFC BILLIARDS online na porta {porta}!")
+        await server.serve_forever()
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
